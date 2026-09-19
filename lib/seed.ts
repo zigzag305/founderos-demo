@@ -23,6 +23,8 @@ import type {
   SocialPost,
   SocialSnapshot,
   Tool,
+  Audit,
+  AuditFinding,
 } from '@/lib/schemas';
 
 // Monochrome palette — the UI is strict black & white; "color" fields carry
@@ -1624,6 +1626,75 @@ const skills: Omit<Skill, 'markdown'>[] = [
   { id: 'skill-attribution', name: 'Revenue attribution', category: 'Ops', description: 'Ties content and calls to closed revenue via Trakyo.', ownerAgentId: null, status: 'planned', tools: ['trakyo', 'ghl'], order: 11 },
 ];
 
+// --- Client audits -------------------------------------------------------
+// One per stage, so every state the /audits board can show is visible in the
+// demo. Each finding cites the page it was read from, mirroring exactly what
+// `audit-machine/dossier.py` produces for a real prospect.
+
+const audits: Audit[] = [
+  {
+    id: 'aud-northgate-dental',
+    brand: 'Northgate Dental',
+    slug: 'northgate-dental',
+    site: 'https://northgate-dental.example',
+    stage: 'delivered',
+    capturedAt: '2026-08-14',
+    pagesCaptured: 11,
+    competitors: ['https://brightsmile-clinic.example', 'https://citysmile.example'],
+    needsHuman: ['budget_and_targets'],
+    engagementId: 'northgate-dental/2026-q3',
+  },
+  {
+    id: 'aud-vantage-fitness',
+    brand: 'Vantage Fitness',
+    slug: 'vantage-fitness',
+    site: 'https://vantage-fitness.example',
+    stage: 'strategy',
+    capturedAt: '2026-09-02',
+    pagesCaptured: 9,
+    competitors: ['https://ironworks-gym.example'],
+    needsHuman: ['target_audience_detail', 'brand_voice_words'],
+    engagementId: 'vantage-fitness/2026-q3',
+  },
+  {
+    id: 'aud-harbour-legal',
+    brand: 'Harbour Legal',
+    slug: 'harbour-legal',
+    site: 'https://harbour-legal.example',
+    stage: 'captured',
+    capturedAt: '2026-09-17',
+    pagesCaptured: 7,
+    competitors: ['https://mericourt-partners.example'],
+    // No public pricing is the headline finding for a professional-services
+    // firm, not a blank — it is what the first call should open with.
+    needsHuman: ['target_audience_detail', 'brand_voice_words', 'pricing_not_public'],
+    engagementId: null,
+  },
+];
+
+const auditFindings: AuditFinding[] = [
+  // Northgate Dental — delivered
+  { id: 'aud-northgate-dental-offer-implants', auditId: 'aud-northgate-dental', kind: 'offer', label: 'Dental implants', detail: 'Named as an offer on the site', sourceUrl: 'https://northgate-dental.example/treatments' },
+  { id: 'aud-northgate-dental-offer-invisalign', auditId: 'aud-northgate-dental', kind: 'offer', label: 'Invisalign', detail: 'Named as an offer on the site', sourceUrl: 'https://northgate-dental.example/treatments' },
+  { id: 'aud-northgate-dental-pricing-2400', auditId: 'aud-northgate-dental', kind: 'pricing', label: '£2,400', detail: 'Price published publicly', sourceUrl: 'https://northgate-dental.example/pricing' },
+  { id: 'aud-northgate-dental-pricing-49', auditId: 'aud-northgate-dental', kind: 'pricing', label: '£49', detail: 'Price published publicly', sourceUrl: 'https://northgate-dental.example/pricing' },
+  { id: 'aud-northgate-dental-cta-book', auditId: 'aud-northgate-dental', kind: 'cta', label: 'Book a free consultation', detail: 'Call to action in use', sourceUrl: 'https://northgate-dental.example/' },
+  { id: 'aud-northgate-dental-channel-instagram', auditId: 'aud-northgate-dental', kind: 'channel', label: 'instagram', detail: 'Channel the site links to', sourceUrl: 'https://northgate-dental.example/' },
+
+  // Vantage Fitness — strategy in flight
+  { id: 'aud-vantage-fitness-offer-pt', auditId: 'aud-vantage-fitness', kind: 'offer', label: 'Personal training', detail: 'Named as an offer on the site', sourceUrl: 'https://vantage-fitness.example/services' },
+  { id: 'aud-vantage-fitness-offer-classes', auditId: 'aud-vantage-fitness', kind: 'offer', label: 'Small group classes', detail: 'Named as an offer on the site', sourceUrl: 'https://vantage-fitness.example/services' },
+  { id: 'aud-vantage-fitness-pricing-39', auditId: 'aud-vantage-fitness', kind: 'pricing', label: '£39/month', detail: 'Price published publicly', sourceUrl: 'https://vantage-fitness.example/pricing' },
+  { id: 'aud-vantage-fitness-cta-trial', auditId: 'aud-vantage-fitness', kind: 'cta', label: 'Start your 7-day trial', detail: 'Call to action in use', sourceUrl: 'https://vantage-fitness.example/' },
+  { id: 'aud-vantage-fitness-channel-tiktok', auditId: 'aud-vantage-fitness', kind: 'channel', label: 'tiktok', detail: 'Channel the site links to', sourceUrl: 'https://vantage-fitness.example/' },
+
+  // Harbour Legal — just captured
+  { id: 'aud-harbour-legal-offer-commercial', auditId: 'aud-harbour-legal', kind: 'offer', label: 'Commercial property', detail: 'Named as an offer on the site', sourceUrl: 'https://harbour-legal.example/services' },
+  { id: 'aud-harbour-legal-offer-employment', auditId: 'aud-harbour-legal', kind: 'offer', label: 'Employment law', detail: 'Named as an offer on the site', sourceUrl: 'https://harbour-legal.example/services' },
+  { id: 'aud-harbour-legal-cta-callback', auditId: 'aud-harbour-legal', kind: 'cta', label: 'Request a callback', detail: 'Call to action in use', sourceUrl: 'https://harbour-legal.example/contact' },
+  { id: 'aud-harbour-legal-channel-linkedin', auditId: 'aud-harbour-legal', kind: 'channel', label: 'linkedin', detail: 'Channel the site links to', sourceUrl: 'https://harbour-legal.example/' },
+];
+
 export function seedDatabase(db: FounderDb): void {
   // INSERT OR REPLACE in every repo makes re-seeding idempotent by id.
   for (const d of departments) db.departments.insert(d);
@@ -1661,4 +1732,8 @@ export function seedDatabase(db: FounderDb): void {
   for (const p of socialPosts) db.socialPosts.enqueue(p);
   for (const c of funnelContacts) db.funnel.insertContact(c);
   for (const t of funnelTouches) db.funnel.insertTouch(t);
+  // Insert-by-id with no prune, unlike the agent roster: an audit imported
+  // from audit-machine is real client work, so a re-seed must never delete it.
+  for (const a of audits) db.audits.insert(a);
+  for (const f of auditFindings) db.audits.insertFinding(f);
 }

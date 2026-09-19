@@ -31,6 +31,9 @@ import {
   SopTaskSchema,
   WorkflowSchema,
   SkillSchema,
+  AuditSchema,
+  AuditFindingSchema,
+  AuditWithFindingsSchema,
   ToolSchema,
   type Agent,
   type AgentCron,
@@ -62,6 +65,9 @@ import {
   type SopTask,
   type Workflow,
   type Skill,
+  type Audit,
+  type AuditFinding,
+  type AuditWithFindings,
   type Tool,
 } from '@/lib/schemas';
 
@@ -317,6 +323,30 @@ CREATE TABLE IF NOT EXISTS skills (
   markdown TEXT NOT NULL DEFAULT '',
   ord INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS audits (
+  id TEXT PRIMARY KEY,
+  brand TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  site TEXT NOT NULL,
+  stage TEXT NOT NULL DEFAULT 'captured',
+  captured_at TEXT NOT NULL,
+  pages_captured INTEGER NOT NULL DEFAULT 0,
+  competitors TEXT NOT NULL DEFAULT '[]',
+  needs_human TEXT NOT NULL DEFAULT '[]',
+  engagement_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS audit_findings (
+  id TEXT PRIMARY KEY,
+  -- No ON DELETE CASCADE: foreign_keys is off for this connection, so the
+  -- clause would never fire. The repo deletes findings explicitly instead.
+  audit_id TEXT NOT NULL REFERENCES audits(id),
+  kind TEXT NOT NULL,
+  label TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  source_url TEXT NOT NULL
+);
 `;
 
 /** Databases created before the hierarchy build lack these columns. */
@@ -390,6 +420,32 @@ function migrateLeadMagnetsTable(db: InstanceType<typeof Database>): void {
     (db.prepare('PRAGMA table_info(lead_magnets)').all() as { name: string }[]).map((c) => c.name),
   );
   if (!columns.has('origin')) db.exec("ALTER TABLE lead_magnets ADD COLUMN origin TEXT NOT NULL DEFAULT 'seed'");
+}
+
+/** audits rows store their two list columns as JSON text. */
+function rowToAudit(r: any): Audit {
+  return AuditSchema.parse({
+    id: r.id,
+    brand: r.brand,
+    slug: r.slug,
+    site: r.site,
+    stage: r.stage,
+    capturedAt: r.captured_at,
+    pagesCaptured: r.pages_captured,
+    competitors: JSON.parse(r.competitors),
+    needsHuman: JSON.parse(r.needs_human),
+    engagementId: r.engagement_id ?? null,
+  });
+}
+
+/** Shared by the audits repo's byId/bySlug lookups. */
+function auditWithFindings(
+  row: any,
+  findings: (auditId: string) => AuditFinding[],
+): AuditWithFindings | null {
+  if (!row) return null;
+  const audit = rowToAudit(row);
+  return AuditWithFindingsSchema.parse({ ...audit, findings: findings(audit.id) });
 }
 
 export function openDb(path: string) {
@@ -1145,6 +1201,63 @@ export function openDb(path: string) {
     },
   };
 
+  const withFindings = (row: any) => auditWithFindings(row, (id) => audits.findings(id));
+
+  const audits = {
+    all(): Audit[] {
+      return db
+        .prepare('SELECT * FROM audits ORDER BY captured_at DESC, brand')
+        .all()
+        .map(rowToAudit);
+    },
+    byId(id: string): AuditWithFindings | null {
+      return withFindings(db.prepare('SELECT * FROM audits WHERE id = ?').get(id));
+    },
+    /** The /audits/[slug] route addresses audits by their readable slug. */
+    bySlug(slug: string): AuditWithFindings | null {
+      return withFindings(db.prepare('SELECT * FROM audits WHERE slug = ?').get(slug));
+    },
+    insert(a: Audit): void {
+      AuditSchema.parse(a);
+      db.prepare(
+        'INSERT OR REPLACE INTO audits (id, brand, slug, site, stage, captured_at, pages_captured, competitors, needs_human, engagement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ).run(
+        a.id, a.brand, a.slug, a.site, a.stage, a.capturedAt, a.pagesCaptured,
+        JSON.stringify(a.competitors), JSON.stringify(a.needsHuman), a.engagementId,
+      );
+    },
+    findings(auditId: string): AuditFinding[] {
+      return db
+        .prepare('SELECT * FROM audit_findings WHERE audit_id = ? ORDER BY kind, label')
+        .all(auditId)
+        .map((r: any) =>
+          AuditFindingSchema.parse({
+            id: r.id,
+            auditId: r.audit_id,
+            kind: r.kind,
+            label: r.label,
+            detail: r.detail,
+            sourceUrl: r.source_url,
+          }),
+        );
+    },
+    insertFinding(f: AuditFinding): void {
+      AuditFindingSchema.parse(f);
+      db.prepare(
+        'INSERT OR REPLACE INTO audit_findings (id, audit_id, kind, label, detail, source_url) VALUES (?, ?, ?, ?, ?, ?)',
+      ).run(f.id, f.auditId, f.kind, f.label, f.detail, f.sourceUrl);
+    },
+    deleteWhereIdNotIn(ids: string[]): void {
+      const placeholders = ids.map(() => '?').join(', ');
+      // Findings first: nothing else owns them, and an orphan row would fail
+      // its schema parse the next time the page asked for it.
+      db.prepare(
+        `DELETE FROM audit_findings WHERE audit_id NOT IN (SELECT id FROM audits WHERE id IN (${placeholders}))`,
+      ).run(...ids);
+      db.prepare(`DELETE FROM audits WHERE id NOT IN (${placeholders})`).run(...ids);
+    },
+  };
+
   return {
     departments,
     agents,
@@ -1169,6 +1282,7 @@ export function openDb(path: string) {
     sopTasks,
     workflows,
     skills,
+    audits,
     close: () => db.close(),
   };
 }

@@ -617,3 +617,49 @@ export type WorkflowStep = z.infer<typeof WorkflowStepSchema>;
 export type Workflow = z.infer<typeof WorkflowSchema>;
 export type SkillStatus = z.infer<typeof SkillStatusSchema>;
 export type Skill = z.infer<typeof SkillSchema>;
+
+/**
+ * Client audits produced by the audit-machine → digital-marketing-pro chain.
+ *
+ * `stage` is the only progress signal: captured (the crawl ran), strategy (an
+ * engagement is running against it), delivered (the client can read it).
+ * Nothing here is inferred — every finding carries the URL it was read from,
+ * and whatever the crawl could not answer stays in `needsHuman` rather than
+ * being guessed, so the screen never shows a confident claim without a source.
+ */
+export const AuditStageSchema = z.enum(['captured', 'strategy', 'delivered']);
+export const AuditFindingKindSchema = z.enum(['offer', 'pricing', 'cta', 'channel']);
+
+export const AuditFindingSchema = z.object({
+  id: z.string().min(1),
+  auditId: z.string().min(1),
+  kind: AuditFindingKindSchema,
+  label: z.string().min(1),
+  detail: z.string(),
+  /** The page this was read from. A finding without evidence is not a finding. */
+  sourceUrl: z.string().url(),
+});
+
+export const AuditSchema = z.object({
+  id: z.string().min(1),
+  brand: z.string().min(1),
+  slug: z.string().min(1),
+  site: z.string().url(),
+  stage: AuditStageSchema,
+  capturedAt: z.string().min(1),
+  pagesCaptured: z.number().int().nonnegative(),
+  competitors: z.array(z.string()),
+  needsHuman: z.array(z.string()),
+  /** Set once digital-marketing-pro has run an engagement against this audit. */
+  engagementId: z.string().nullable(),
+});
+
+export const AuditWithFindingsSchema = AuditSchema.extend({
+  findings: z.array(AuditFindingSchema),
+});
+
+export type AuditStage = z.infer<typeof AuditStageSchema>;
+export type AuditFindingKind = z.infer<typeof AuditFindingKindSchema>;
+export type AuditFinding = z.infer<typeof AuditFindingSchema>;
+export type Audit = z.infer<typeof AuditSchema>;
+export type AuditWithFindings = z.infer<typeof AuditWithFindingsSchema>;

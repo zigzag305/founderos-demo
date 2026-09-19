@@ -24,6 +24,8 @@ const ROUTES: RouteEntry[] = [
   { route: 'agents/activity', load: () => import('@/app/api/agents/activity/route'), url: 'http://localhost/api/agents/activity?limit=5' },
   { route: 'agents/broadcast', load: () => import('@/app/api/agents/broadcast/route'), url: 'http://localhost/api/agents/broadcast' },
   { route: 'agents/work', load: () => import('@/app/api/agents/work/route'), url: 'http://localhost/api/agents/work?agentId=data-agent' },
+  { route: 'audits', load: () => import('@/app/api/audits/route'), url: 'http://localhost/api/audits' },
+  { route: 'audits/[id]', load: () => import('@/app/api/audits/[id]/route'), url: 'http://localhost/api/audits/northgate-dental', params: { id: 'northgate-dental' } },
   { route: 'brain', load: () => import('@/app/api/brain/route'), url: 'http://localhost/api/brain' },
   { route: 'brain/graph', load: () => import('@/app/api/brain/graph/route'), url: 'http://localhost/api/brain/graph' },
   { route: 'brain/overview', load: () => import('@/app/api/brain/overview/route'), url: 'http://localhost/api/brain/overview' },

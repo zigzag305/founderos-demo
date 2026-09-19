@@ -259,3 +259,25 @@ def test_engine_produces_a_dossier_from_real_html():
     intake = build_intake("acme-plumbing", "https://acme.example", pages, [])
     md = render_dossier("acme-plumbing", "https://acme.example", pages, {}, intake)
     assert "Emergency plumbers in Leeds" in md
+
+
+def test_build_intake_does_not_list_the_company_name_as_an_offer():
+    # Regression: the homepage h1 is the brand, not something it sells, and
+    # "Harbour Legal" appearing under Offers reads as a broken crawl.
+    page = extract(
+        "https://a.com/", "home",
+        "# Harbour Legal\n## Commercial property\n## Employment law",
+        {"title": "Harbour Legal"},
+    )
+    offers = build_intake("harbour-legal", "https://a.com", [page], [])["offers"]["value"]
+    assert offers == ["Commercial property", "Employment law"]
+
+
+def test_build_intake_still_keeps_offers_that_merely_contain_the_brand_word():
+    page = extract(
+        "https://a.com/", "home",
+        "# Acme\n## Acme boiler cover",
+        {"title": "Acme"},
+    )
+    offers = build_intake("acme", "https://a.com", [page], [])["offers"]["value"]
+    assert offers == ["Acme boiler cover"]

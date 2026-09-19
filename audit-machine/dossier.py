@@ -194,6 +194,18 @@ def build_intake(brand: str, site: str, pages: list[Page], competitors: list[str
     # offer list. Falling back keeps small local businesses from coming out blank.
     if not offers and home:
         offers = [home]
+
+    # The homepage h1 is usually the company name, not something it sells.
+    # Listing "Harbour Legal" as an offer reads as a broken crawl in a
+    # deliverable, so drop headings that just restate the brand or title.
+    not_an_offer = {
+        n.lower()
+        for n in (brand, brand.replace("-", " "), home.title if home else "")
+        if n
+    }
+    offer_headings = [
+        h for p in offers for h in p.headings if h.lower().strip() not in not_an_offer
+    ]
     pitch = (home.description or (home.headings[0] if home.headings else "")) if home else ""
 
     intake = {
@@ -202,7 +214,7 @@ def build_intake(brand: str, site: str, pages: list[Page], competitors: list[str
         "captured": date.today().isoformat(),
         "elevator_pitch": {"value": pitch, "source": home.url if home else site},
         "offers": {
-            "value": _dedupe([h for p in offers for h in p.headings], 12),
+            "value": _dedupe(offer_headings, 12),
             "source": [p.url for p in offers],
         },
         "pricing_signals": {

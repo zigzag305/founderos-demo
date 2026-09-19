@@ -78,6 +78,10 @@ do not restructure) · `/brain` G-Brain knowledge core (signature `BrainViz`
 rings + live `gbrain ›` query card + doctor warnings, with the original
 capture / life-map / pipeline / graph / query-path sections kept underneath) ·
 `/roadmap` phases + quarters · `/analytics` real connector numbers ·
+`/audits` client audit board (stage columns captured → strategy →
+delivered, one card per prospect; detail at `/audits/[slug]` leads with the
+gaps the website could not answer, then the findings, each linking the page it
+was read from — see `audit-machine/` and `npm run audit:import`) ·
 `/funnel` living client-journey flow (Vantage + Launchpad Cohort: stage
 columns left→right, one node per client, 4–5 touch markers per path; seeded
 dummy, real-ready for Trakyo organic + Meta Ads MCP paid attribution) ·
