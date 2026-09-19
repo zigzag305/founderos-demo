@@ -1,0 +1,10 @@
+# Audit Machine, step 1 dependencies.
+#
+# playwright is pinned because crawl4ai pulls whatever is latest, and the
+# browser binary on disk has to match the build the pinned playwright expects.
+# After installing, run `crawl4ai-setup` once to fetch that browser.
+crawl4ai==0.9.3
+playwright==1.56.0
+
+# tests only
+pytest>=8.0
