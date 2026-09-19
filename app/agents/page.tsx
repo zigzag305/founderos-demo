@@ -1,6 +1,7 @@
 import { getDb } from '@/lib/data';
 import { PageHeader } from '@/components/PageHeader';
 import { AgentChat } from '@/components/AgentChat';
+import { AgentRunButton } from '@/components/AgentRunButton';
 import { ConductorChat } from '@/components/ConductorChat';
 import { AgentActivityFeed } from '@/components/AgentActivityFeed';
 import { AgentWorkPanel } from '@/components/AgentWorkPanel';
@@ -89,16 +90,8 @@ function AgentRosterCard({
           <span className="truncate">{parent ? `under ${parent.name}` : `instance ${agent.instance}`}</span>
           <span className="shrink-0 uppercase tracking-wider">{agent.status}</span>
         </div>
-        {lastRun && (
-          <div className="flex items-baseline gap-1.5 font-mono text-[10px] leading-snug text-os-dim">
-            <span className={`font-bold ${lastRun.ok ? 'text-os-ok' : 'text-os-err'}`}>
-              {lastRun.ok ? 'OK' : 'FAIL'}
-            </span>
-            <span className="truncate" title={lastRun.summary}>
-              last check: {lastRun.summary.slice(0, 56)}
-            </span>
-          </div>
-        )}
+        {/* The button carries last-run state, so the two can't disagree. */}
+        <AgentRunButton agentId={agent.id} agentName={agent.name} lastRun={lastRun} />
         <AgentChat agentId={agent.id} agentName={agent.name} initialMessages={messages} />
         <AgentWorkPanel agentId={agent.id} initialTasks={tasks} initialCrons={crons} />
       </div>

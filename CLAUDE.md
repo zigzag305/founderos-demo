@@ -57,12 +57,20 @@ Alex's directive: real integrations, not larp. Strict black & white theme
   LIVE), `miro.ts` (knowledge/.env.agents — LIVE),
   `wispr.ts` (local flow.sqlite readonly — LIVE), `obsidian.ts` (vault fs;
   needs macOS Documents permission), `local-stack.ts` (local service ports
-  + tmux + brew binaries).
+  + tmux + brew binaries), `audit-machine.ts` (the Python crawler in
+  `audit-machine/`; reports `not_configured` with the venv command when
+  crawl4ai isn't importable — `AUDIT_PYTHON` pins an interpreter).
 - `lib/creds.ts` — credential resolution: process.env first, then Alex's
   canonical files at runtime. NEVER copy secret values into this repo.
 - `lib/agents/runtime.ts` + `real.ts` — agent registry; every seeded agent row
   maps 1:1 to a `RuntimeAgent` with a real `run()` (enforced by seed tests).
-  Runs persist to `agent_runs`. `POST /api/agents/[id]/run`.
+  Runs persist to `agent_runs`. `POST /api/agents/[id]/run`, fired from
+  `AgentRunButton` on every roster card (it carries last-run state, so the
+  button and the card can't disagree). `audit-agent` is the worked example:
+  `run()` reports the /audits board + crawler readiness, `respond("audit
+  <url>")` shells out to dossier.py and files the result. A crawl that
+  reached zero pages is reported as a failure, never filed — dossier.py
+  exits 0 even when every page failed.
 - `/integrations` is the live Connections board (`GET /api/connections`).
 - Credentials go in `.env.local` (gitignored) — see `.env.example`. NEVER
   commit keys; never copy keys from `~/knowledge/.env.agents` into the repo.

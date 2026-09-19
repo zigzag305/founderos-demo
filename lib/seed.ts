@@ -268,6 +268,22 @@ const agents: Agent[] = [
     instance: 'builtin',
   },
   {
+    id: 'audit-agent',
+    // Clients, not Sales: the dossier is what opens an engagement and what the
+    // client keeps reading. (Sales is also at the /org layout's width limit —
+    // its markup is frozen, so a 9th Sales SOP would not fit.)
+    departmentId: 'dept-clients',
+    name: 'Audit Agent',
+    role: 'Prospect Audits',
+    status: 'active',
+    tier: 'specialist',
+    description: 'Crawls a prospect site into a strategy-ready dossier and files it on /audits. Every finding keeps the URL it was read from.',
+    model: 'crawl4ai + dossier.py',
+    tools: ['crawl4ai', 'audits'],
+    parentId: 'client-roster',
+    instance: 'builtin',
+  },
+  {
     id: 'stripe-sales',
     departmentId: 'dept-finance',
     name: 'Stripe',
@@ -513,6 +529,18 @@ const leadMagnets: LeadMagnet[] = [
 ];
 
 const sopTasks: SopTask[] = [
+  {
+    id: 'sop-audit-agent', departmentId: 'dept-clients', assigneeKind: 'agent', assigneeId: 'audit-agent',
+    title: 'Capture a prospect audit before the first call',
+    summary: 'Crawl their site into a dossier so the call opens with findings, not questions.',
+    steps: [
+      'Run the agent with the prospect URL, plus up to two competitors',
+      'Read the gaps first — what the website cannot answer is the call agenda',
+      'Spot-check two findings against their source URLs before quoting',
+      'Hand the dossier to /digital-marketing-pro:brand-setup to open the engagement',
+      'Re-run before the follow-up call so a stale finding never reaches the client',
+    ],
+  },
   // TECH
   {
     id: 'sop-conductor', departmentId: 'dept-tech', assigneeKind: 'agent', assigneeId: 'conductor',

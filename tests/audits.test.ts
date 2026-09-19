@@ -92,6 +92,35 @@ describe('audits repo', () => {
     );
   });
 
+  test('replaceFindings drops what a re-crawl no longer found', () => {
+    db = openDb(':memory:');
+    db.audits.insert(audit());
+    db.audits.insertFinding(finding());
+    db.audits.insertFinding(finding({ id: 'f-2', kind: 'offer', label: 'Retired service' }));
+    db.audits.replaceFindings('aud-1', [finding({ id: 'f-3', kind: 'offer', label: 'Still offered' })]);
+    expect(db.audits.byId('aud-1')?.findings.map((f) => f.label)).toEqual(['Still offered']);
+  });
+
+  test('replaceFindings leaves other audits alone', () => {
+    db = openDb(':memory:');
+    db.audits.insert(audit());
+    db.audits.insert(audit({ id: 'aud-2', slug: 'other' }));
+    db.audits.insertFinding(finding({ id: 'f-other', auditId: 'aud-2' }));
+    db.audits.replaceFindings('aud-1', []);
+    expect(db.audits.byId('aud-2')?.findings).toHaveLength(1);
+  });
+
+  test('replaceFindings rejects a bad row before deleting the good ones', () => {
+    db = openDb(':memory:');
+    db.audits.insert(audit());
+    db.audits.insertFinding(finding());
+    expect(() =>
+      db.audits.replaceFindings('aud-1', [finding({ id: 'f-bad', sourceUrl: 'not-a-url' })]),
+    ).toThrow();
+    // The original survives: a malformed import must not empty the board.
+    expect(db.audits.byId('aud-1')?.findings).toHaveLength(1);
+  });
+
   test('deleting an audit takes its findings with it', () => {
     db = openDb(':memory:');
     db.audits.insert(audit());

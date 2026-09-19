@@ -13,6 +13,8 @@ import { arcadsStatus } from '@/lib/connectors/arcads';
 import { whatsappStatus } from '@/lib/connectors/whatsapp';
 import { wisprStatus } from '@/lib/connectors/wispr';
 import { localStackStatus } from '@/lib/connectors/local-stack';
+import { auditMachineStatus, crawlSite } from '@/lib/connectors/audit-machine';
+import { intakeToAudit, type DossierIntake } from '@/lib/audit-import';
 import { getDb } from '@/lib/data';
 import type { LlmToolSpec } from '@/lib/connectors/llm';
 import type { AgentRunResult, RuntimeAgent } from '@/lib/agents/runtime';
@@ -509,6 +511,71 @@ export const realAgents: RuntimeAgent[] = [
           live === 0 ? ' — set FATHOM_API_KEY and a Slack bot token to service clients' : ''
         }`,
         data: { recall, slack: slack.state },
+      };
+    },
+  },
+
+  // ── Sales: prospect audits ───────────────────────────────────────────
+  {
+    id: 'audit-agent',
+    name: 'Audit Agent',
+    description:
+      'Crawls a prospect site into a strategy-ready dossier and files it on /audits. Run reports the board; chat "audit https://site" to capture a new one.',
+    departmentId: 'dept-sales',
+    async run() {
+      const [status, db] = [await auditMachineStatus(), getDb()];
+      const audits = db.audits.all();
+      const openGaps = audits.reduce((n, a) => n + a.needsHuman.length, 0);
+      const captured = audits.filter((a) => a.stage === 'captured').length;
+      return {
+        // The crawler being installed is the thing this run can actually
+        // verify; an empty board is a true answer, not a failure.
+        ok: status.state === 'connected',
+        summary:
+          `${audits.length} audit(s) · ${captured} awaiting strategy · ${openGaps} open gap(s) · ` +
+          (status.state === 'connected' ? status.detail : status.detail),
+        data: { audits: audits.length, captured, openGaps, crawler: status.state },
+      };
+    },
+    async respond(message: string) {
+      const url = /https?:\/\/[^\s<>"']+/.exec(message)?.[0];
+      if (!url) {
+        return {
+          ok: false,
+          summary: 'Give me a URL to audit, e.g. "audit https://example.com".',
+        };
+      }
+      // Slug from the hostname: the brand name is not knowable before the
+      // crawl, and dossier.py titles it from this.
+      const brand = new URL(url).hostname.replace(/^www\./, '').split('.')[0];
+      const crawl = await crawlSite({ brand, site: url });
+      if (!crawl.ok) return { ok: false, summary: `Crawl failed: ${crawl.error}` };
+
+      const fs = await import('node:fs');
+      const intake = JSON.parse(fs.readFileSync(crawl.intakePath, 'utf8')) as DossierIntake;
+      const { audit, findings } = intakeToAudit(intake);
+
+      // dossier.py exits 0 even when every page failed to load, so a dead
+      // host would otherwise be filed as a successful audit with nothing in
+      // it. Zero pages captured is a failed crawl, and saying so beats
+      // putting an empty board in front of a client.
+      if (audit.pagesCaptured === 0) {
+        return {
+          ok: false,
+          summary: `Crawl reached no pages on ${audit.site} — nothing filed. Check the URL is public and reachable.`,
+        };
+      }
+
+      const db = getDb();
+      db.audits.insert(audit);
+      db.audits.replaceFindings(audit.id, findings);
+
+      return {
+        ok: true,
+        summary:
+          `Captured ${audit.brand}: ${findings.length} finding(s) from ${audit.pagesCaptured} page(s), ` +
+          `${audit.needsHuman.length} gap(s) the site cannot answer. View /audits/${audit.slug}`,
+        data: { slug: audit.slug, findings: findings.length, gaps: audit.needsHuman.length },
       };
     },
   },

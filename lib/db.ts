@@ -1247,6 +1247,20 @@ export function openDb(path: string) {
         'INSERT OR REPLACE INTO audit_findings (id, audit_id, kind, label, detail, source_url) VALUES (?, ?, ?, ?, ?, ?)',
       ).run(f.id, f.auditId, f.kind, f.label, f.detail, f.sourceUrl);
     },
+    /**
+     * Replace an audit's findings wholesale. A crawl is a snapshot, not an
+     * append: if a prospect drops a service between crawls, the old finding
+     * has to go, or the board keeps asserting something the site no longer
+     * says — and every finding here is meant to be checkable.
+     */
+    replaceFindings(auditId: string, next: AuditFinding[]): void {
+      for (const f of next) AuditFindingSchema.parse(f);
+      const tx = db.transaction((rows: AuditFinding[]) => {
+        db.prepare('DELETE FROM audit_findings WHERE audit_id = ?').run(auditId);
+        for (const f of rows) audits.insertFinding(f);
+      });
+      tx(next);
+    },
     deleteWhereIdNotIn(ids: string[]): void {
       const placeholders = ids.map(() => '?').join(', ');
       // Findings first: nothing else owns them, and an orphan row would fail

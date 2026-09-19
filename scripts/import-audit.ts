@@ -52,7 +52,8 @@ const db = openDb(dbPath);
 // Schema parse happens inside the repo, so a malformed intake fails here
 // rather than surfacing as a broken page later.
 db.audits.insert(audit);
-for (const f of findings) db.audits.insertFinding(f);
+// Replace, don't append: a re-crawl must drop findings the site lost.
+db.audits.replaceFindings(audit.id, findings);
 db.close();
 
 console.log(`Imported ${audit.brand} (${audit.stage}) into ${dbPath}`);
